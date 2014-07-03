@@ -1,9 +1,5 @@
-import java.awt.Dimension;
-import java.awt.FlowLayout;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
+import java.awt.*;
+import java.awt.event.*;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.PrintWriter;
@@ -16,8 +12,7 @@ import javafx.scene.media.Media;
 import javafx.scene.media.MediaPlayer;
 
 import javax.swing.*;
-import javax.swing.event.ChangeEvent;
-import javax.swing.event.ChangeListener;
+import javax.swing.event.*;
 
 ////////////////////////////////////////////
 //
@@ -30,6 +25,7 @@ public class Jams
 {	
 	private JFrame frame;
 	private final int FRAME_WIDTH = 600;
+	private final int FRAME_HEIGHT = 550;
 	private JFXPanel fxPanel;
 	private JPanel mainPanel;
 	private JPanel fileListPanel;
@@ -39,9 +35,9 @@ public class Jams
 	private JFileChooser chooser;
 	private JSlider sldVolume;
 	private JMenuBar mnuMenuBar;
-	private JMenu mnuMenu;
-	private JMenuItem mnuOpen;
-	private JMenuItem mnuExit;
+	private JMenu mnuFile;
+	private JMenuItem mnuFileOpen;
+	private JMenuItem mnuFileExit;
 	private Media media;
 	private MediaPlayer player;
 	private ButtonListener btnListener;
@@ -52,14 +48,16 @@ public class Jams
 	private JList<String> fileList;
 	private JScrollPane scrollPane;
 	private ArrayList<URI> uriList;
-	private ArrayList<String> songNames;
+	private ArrayList<String> fileNamesList;
 	private DefaultListModel<String> listModel;
 	private int counter;
 	private PrintWriter pwriter;
-	private File songFile;
+	private File playlistFile;
 	private JLabel lblTimeLeft, lblTotalTime, lblTimeSeperator, lblTimerPreSpace;
 	private int timerIndex;
 	private Timer timer;
+	private JProgressBar progressBar;
+	private int progressBarIndex;
 	
 	public Jams() 
 	{	
@@ -75,13 +73,13 @@ public class Jams
 		btnStop = new JButton("Stop");
 		btnRemoveSong = new JButton("Remove Song");
 		chooser = new JFileChooser();
-		sldVolume = new JSlider(JSlider.HORIZONTAL, 0, 100, 40);
+		sldVolume = new JSlider(JSlider.HORIZONTAL, 0, 100, 33);
 		lblCurrently = new JLabel("Currently Playing: ");
 		lblName = new JLabel("");
 		mnuMenuBar = new JMenuBar();
-		mnuMenu = new JMenu("File");
-		mnuOpen = new JMenuItem("Open");
-		mnuExit = new JMenuItem("Exit");
+		mnuFile = new JMenu("File");
+		mnuFileOpen = new JMenuItem("Open");
+		mnuFileExit = new JMenuItem("Exit");
 		btnListener = new ButtonListener();
 		sldListener = new SliderListener();
 		mnuListener = new MenuListener();
@@ -89,15 +87,16 @@ public class Jams
 		listModel = new DefaultListModel<String>();
 		fileList = new JList<String>(listModel);
 		uriList = new ArrayList<URI>();
-		songNames = new ArrayList<String>();
+		fileNamesList = new ArrayList<String>();
 		scrollPane = new JScrollPane(fileList);
 		counter = 0;
-		songFile = new File("songs.txt");
+		playlistFile = new File("playlist.txt");
 		lblTimeLeft = new JLabel("000");
 		lblTotalTime = new JLabel("000");
 		lblTimeSeperator = new JLabel(" / ");
 		lblTimerPreSpace = new JLabel("     ");
 		timer = new Timer(1000, new TimerListener());
+		progressBar = new JProgressBar(0, 100);
 		
 		createAndShowGUI();
 		loadFile();
@@ -106,16 +105,18 @@ public class Jams
 	private void createAndShowGUI()
 	{
 		sldVolume.setSize(200, 25);
-		sldVolume.setMajorTickSpacing(20);
+		sldVolume.setMajorTickSpacing(50);
 		sldVolume.setMinorTickSpacing(10);
 		sldVolume.setPaintTicks(true);
-		sldVolume.setPaintLabels(true);
+		//sldVolume.setPaintLabels(true);
 		
 		chooser.setMultiSelectionEnabled(true);
 		
 		fileList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 		
-		scrollPane.setPreferredSize(new Dimension(500, 300));
+		scrollPane.setPreferredSize(new Dimension(FRAME_WIDTH - 100, FRAME_HEIGHT - 250));  //500x300
+		
+		progressBar.setPreferredSize(new Dimension(FRAME_WIDTH - 100, 15));  //500x15
 		
 		btnOpen.addActionListener(btnListener);
 		btnPause.addActionListener(btnListener);
@@ -123,15 +124,15 @@ public class Jams
 		btnStop.addActionListener(btnListener);
 		btnRemoveSong.addActionListener(btnListener);
 		sldVolume.addChangeListener(sldListener);
-		mnuOpen.addActionListener(mnuListener);
-		mnuExit.addActionListener(mnuListener);
+		mnuFileOpen.addActionListener(mnuListener);
+		mnuFileExit.addActionListener(mnuListener);
 		fileList.addMouseListener(mouseClickListener);
 		
-		mnuMenuBar.add(mnuMenu);
-		mnuMenu.add(mnuOpen);
-		mnuMenu.add(mnuExit);
+		mnuFile.add(mnuFileOpen);
+		mnuFile.add(mnuFileExit);
+		mnuMenuBar.add(mnuFile);
 		
-		mainPanel.setPreferredSize(new Dimension(FRAME_WIDTH, 100));
+		mainPanel.setPreferredSize(new Dimension(FRAME_WIDTH, FRAME_HEIGHT - 450));  //600x100
 		mainPanel.add(lblImage);
 		mainPanel.add(btnOpen);
 		mainPanel.add(btnPause);
@@ -144,18 +145,19 @@ public class Jams
 		mainPanel.add(lblTimeSeperator);
 		mainPanel.add(lblTotalTime);
 		
-		fileListPanel.setPreferredSize(new Dimension(FRAME_WIDTH, 400));
+		fileListPanel.setPreferredSize(new Dimension(FRAME_WIDTH, FRAME_HEIGHT - 150));  //600x425
 		fileListPanel.add(lblCurrently);
 		fileListPanel.add(lblName);
+		fileListPanel.add(progressBar);
 		fileListPanel.add(scrollPane);
 		
-		frame.setSize(600, 525);
+		frame.setSize(FRAME_WIDTH, FRAME_HEIGHT); //600x550
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		frame.setLayout(new FlowLayout());
-		frame.add(fxPanel);
+		frame.getContentPane().add(fxPanel);
 		frame.setJMenuBar(mnuMenuBar);
-		frame.add(mainPanel);
-		frame.add(fileListPanel);
+		frame.getContentPane().add(mainPanel);
+		frame.getContentPane().add(fileListPanel);
 		frame.setVisible(true);
 	}//end of createAndShowGUI
 		
@@ -221,6 +223,7 @@ public class Jams
 					lblTimeLeft.setText("000");
 					lblTotalTime.setText("000");
 					lblName.setText("");
+					progressBar.setValue(0);
 				}
 				catch(NullPointerException e) 
 				{	
@@ -251,7 +254,7 @@ public class Jams
 		@Override
 		public void actionPerformed(ActionEvent event) 
 		{	
-			if(event.getSource() == mnuOpen) 
+			if(event.getSource() == mnuFileOpen) 
 			{	
 				openFile();
 			}
@@ -265,50 +268,57 @@ public class Jams
 	private class MouseClickListener implements MouseListener 
 	{
 		@Override
-		public void mouseClicked(MouseEvent e) 
+		public void mouseClicked(MouseEvent event) 
 		{	
-			if(e.getClickCount() == 2)  //represents double-click
+			if(event.getClickCount() == 2)  //represents double-click
 			{	
 				playFile();
 			}
 		}
 
 		@Override
-		public void mousePressed(MouseEvent e) 
+		public void mousePressed(MouseEvent event) 
 		{
 			//nothing
 		}
 
 		@Override
-		public void mouseReleased(MouseEvent e) 
+		public void mouseReleased(MouseEvent event) 
 		{
 			//nothing
 		}
 
 		@Override
-		public void mouseEntered(MouseEvent e)
+		public void mouseEntered(MouseEvent event)
 		{
 			//nothing
 		}
 
 		@Override
-		public void mouseExited(MouseEvent e) 
+		public void mouseExited(MouseEvent event) 
 		{
 			//nothing
 		}
-	}//end of mouseClickListener
+	}//end of MouseClickListener
 	
 	private class TimerListener implements ActionListener
 	{
 		@Override
 		public void actionPerformed(ActionEvent event)
 		{
-			lblTimeLeft.setText("" + (timerIndex - 1));
 			timerIndex--;
+			progressBarIndex++;
+			lblTimeLeft.setText("" + timerIndex);
+			progressBar.setValue(progressBarIndex);
 			if(timerIndex == -1)
 			{
 				timer.stop();
 				fileList.setSelectedIndex(fileList.getSelectedIndex() + 1);
+				if((fileList.getSelectedIndex() + 1) == fileNamesList.size())
+				{
+					fileList.setSelectedIndex(0);
+				}
+
 				playFile();
 			}
 		}
@@ -327,12 +337,12 @@ public class Jams
 			
 			for(int i = 0; i < files.length; i++)  //use String ArrayList to fill with the names of the files
 			{
-				songNames.add(files[i].getName());
+				fileNamesList.add(files[i].getName());
 			}
 			
 			for(int i = 0; i < files.length; i++)  //adding the song names to the JList
 			{		
-				listModel.addElement(songNames.get(i + counter));
+				listModel.addElement(fileNamesList.get(i + counter));
 			}
 			
 			counter += files.length;
@@ -346,8 +356,8 @@ public class Jams
 		{	
 			player.stop();
 		}
-		catch(NullPointerException e) 
-		{	
+		catch(NullPointerException e)
+		{
 			//catch exceptions when player is not playing
 		}
 
@@ -357,7 +367,7 @@ public class Jams
 			player = new MediaPlayer(media);
 			player.setVolume(sldVolume.getValue() / 100.0);  //divide by 100.0 to get a double between 0 and 1
 			player.play();
-			lblName.setText(songNames.get(fileList.getSelectedIndex()));
+			lblName.setText(fileNamesList.get(fileList.getSelectedIndex()));
 			
 			try
 			{
@@ -365,7 +375,7 @@ public class Jams
 			}
 			catch (InterruptedException e)
 			{
-				//nothing
+				
 			}
 
 			StringBuilder sb = new StringBuilder(player.getStopTime().toString());
@@ -376,26 +386,26 @@ public class Jams
 			timerIndex = (int) d;  //get rid of decimal point
 			lblTimeLeft.setText("" + timerIndex);
 			lblTotalTime.setText("" + timerIndex);
+			progressBar.setValue(0);
+			progressBar.setMaximum(timerIndex);
+			progressBarIndex = 0;
 			timer.start();
 		}
-		catch(ArrayIndexOutOfBoundsException e) 
+		catch(ArrayIndexOutOfBoundsException e)
 		{
 			//catch exception if file is removed and play is pressed
 		}
 	}//end of playFile
-	
-
 	
 	public void removeFile() 
 	{
 		int toRemove = fileList.getSelectedIndex();
 		listModel.removeElementAt(toRemove);
 		uriList.remove(toRemove);
-		songNames.remove(toRemove);
+		fileNamesList.remove(toRemove);
 		counter--;
 		writeFile();
 	}//end of removeFile
-	
 	
 	public void writeFile()
 	{
@@ -418,7 +428,6 @@ public class Jams
 		pwriter.close();
 	}//end of writeFile
 	
-	
 	public void loadFile()
 	{
 		ArrayList<String> s = new ArrayList<String>();
@@ -426,7 +435,7 @@ public class Jams
 		
 		try 
 		{
-			scan = new Scanner(songFile);
+			scan = new Scanner(playlistFile);
 			while(scan.hasNextLine())
 			{
 				s.add(scan.nextLine());
@@ -447,12 +456,12 @@ public class Jams
 			
 			for(int i = 0; i < loadFileArray.length; i++)
 			{
-				songNames.add(loadFileArray[i].getName());
+				fileNamesList.add(loadFileArray[i].getName());
 			}
 			
 			for(int i = 0; i < loadFileArray.length; i++)
 			{
-				listModel.addElement(songNames.get(i));
+				listModel.addElement(fileNamesList.get(i));
 			}
 			
 			counter += loadFileArray.length;
