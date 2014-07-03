@@ -411,7 +411,7 @@ public class Jams
 	{
 		try 
 		{
-			pwriter = new PrintWriter("songs.txt");
+			pwriter = new PrintWriter("playlist.txt");
 		}
 		catch (FileNotFoundException e) 
 		{
