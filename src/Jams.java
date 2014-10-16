@@ -14,13 +14,11 @@ import javafx.scene.media.MediaPlayer;
 import javax.swing.*;
 import javax.swing.event.*;
 
-////////////////////////////////////////////
-//
-//  Jams.java
-//  A simple mp3 player GUI in Java
-//
-////////////////////////////////////////////
-
+/**
+ * Jams.java
+ * A simple mp3 player GUI in Java
+ * @author kevin
+ */
 public class Jams
 {	
 	private JFrame frame;
@@ -29,9 +27,10 @@ public class Jams
 	private JFXPanel fxPanel;
 	private JPanel mainPanel;
 	private JPanel fileListPanel;
-	private ImageIcon pony;
-	private JLabel lblImage, lblCurrently, lblName;
+	private JLabel lblCurrently, lblName;
 	private JButton btnOpen, btnPause, btnPlay, btnStop, btnRemoveSong;
+	private final int BUTTON_WIDTH = 120;
+	private final int BUTTON_HEIGHT = 25;
 	private JFileChooser chooser;
 	private JSlider sldVolume;
 	private JMenuBar mnuMenuBar;
@@ -40,10 +39,6 @@ public class Jams
 	private JMenuItem mnuFileExit;
 	private Media media;
 	private MediaPlayer player;
-	private ButtonListener btnListener;
-	private SliderListener sldListener;
-	private MenuListener mnuListener;
-	private MouseClickListener mouseClickListener;
 	private File[] files;
 	private JList<String> fileList;
 	private JScrollPane scrollPane;
@@ -59,81 +54,52 @@ public class Jams
 	private JProgressBar progressBar;
 	private int progressBarIndex;
 	
+	/**
+	 * Constructor. Calls various build methods to build and set up the GUI.
+	 * Also calls the loadFile method to load the list of files.
+	 */
 	public Jams() 
 	{	
-		frame = new JFrame("Jams");
-		fxPanel = new JFXPanel();
-		mainPanel = new JPanel();
-		fileListPanel = new JPanel();
-		pony = new ImageIcon("pony.png");
-		lblImage = new JLabel(pony);
-		btnOpen = new JButton("Open");
-		btnPause = new JButton("Pause");
-		btnPlay = new JButton("Play");
-		btnStop = new JButton("Stop");
-		btnRemoveSong = new JButton("Remove Song");
-		chooser = new JFileChooser();
-		sldVolume = new JSlider(JSlider.HORIZONTAL, 0, 100, 33);
-		lblCurrently = new JLabel("Currently Playing: ");
-		lblName = new JLabel("");
-		mnuMenuBar = new JMenuBar();
-		mnuFile = new JMenu("File");
-		mnuFileOpen = new JMenuItem("Open");
-		mnuFileExit = new JMenuItem("Exit");
-		btnListener = new ButtonListener();
-		sldListener = new SliderListener();
-		mnuListener = new MenuListener();
-		mouseClickListener = new MouseClickListener();
-		listModel = new DefaultListModel<String>();
-		fileList = new JList<String>(listModel);
-		uriList = new ArrayList<URI>();
-		fileNamesList = new ArrayList<String>();
-		scrollPane = new JScrollPane(fileList);
-		counter = 0;
-		playlistFile = new File("playlist.txt");
-		lblTimeLeft = new JLabel("000");
-		lblTotalTime = new JLabel("000");
-		lblTimeSeperator = new JLabel(" / ");
-		lblTimerPreSpace = new JLabel("     ");
-		timer = new Timer(1000, new TimerListener());
-		progressBar = new JProgressBar(0, 100);
-		
-		createAndShowGUI();
+		buildButtons();
+		buildLabels();
+		buildVolumeSlider();
+		buildPlaylistSystem();
+		buildTimerSystem();
+		buildMenu();
+		buildMainPanel();
+		buildFileListPanel();
+		buildFrame();
 		loadFile();
-	}//end of constructor
+	}//Constructor
 	
-	private void createAndShowGUI()
+	/**
+	 * Instantiates and sets up the JFrame.
+	 * Sets up the size, layout, menus, content panes, etc.
+	 */
+	private void buildFrame()
 	{
-		sldVolume.setSize(200, 25);
-		sldVolume.setMajorTickSpacing(50);
-		sldVolume.setMinorTickSpacing(10);
-		sldVolume.setPaintTicks(true);
-		//sldVolume.setPaintLabels(true);
+		fxPanel = new JFXPanel();
+		frame = new JFrame("Jams");
 		
-		chooser.setMultiSelectionEnabled(true);
+		frame.setSize(FRAME_WIDTH, FRAME_HEIGHT); //600x550
+		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		frame.setLayout(new FlowLayout());
+		frame.getContentPane().add(fxPanel);
+		frame.setJMenuBar(mnuMenuBar);
+		frame.getContentPane().add(mainPanel);
+		frame.getContentPane().add(fileListPanel);
+		frame.setVisible(true);
+	}//buildFrame
+	
+	/**
+	 * Instantiates and sets up the main panel of the GUI. 
+	 * The main panel holds all the buttons, volume slider, and timer labels
+	 */
+	private void buildMainPanel()
+	{
+		mainPanel = new JPanel();
 		
-		fileList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-		
-		scrollPane.setPreferredSize(new Dimension(FRAME_WIDTH - 100, FRAME_HEIGHT - 250));  //500x300
-		
-		progressBar.setPreferredSize(new Dimension(FRAME_WIDTH - 100, 15));  //500x15
-		
-		btnOpen.addActionListener(btnListener);
-		btnPause.addActionListener(btnListener);
-		btnPlay.addActionListener(btnListener);
-		btnStop.addActionListener(btnListener);
-		btnRemoveSong.addActionListener(btnListener);
-		sldVolume.addChangeListener(sldListener);
-		mnuFileOpen.addActionListener(mnuListener);
-		mnuFileExit.addActionListener(mnuListener);
-		fileList.addMouseListener(mouseClickListener);
-		
-		mnuFile.add(mnuFileOpen);
-		mnuFile.add(mnuFileExit);
-		mnuMenuBar.add(mnuFile);
-		
-		mainPanel.setPreferredSize(new Dimension(FRAME_WIDTH, FRAME_HEIGHT - 450));  //600x100
-		mainPanel.add(lblImage);
+		mainPanel.setPreferredSize(new Dimension(FRAME_WIDTH, FRAME_HEIGHT - 450)); //600x100
 		mainPanel.add(btnOpen);
 		mainPanel.add(btnPause);
 		mainPanel.add(btnPlay);
@@ -144,24 +110,161 @@ public class Jams
 		mainPanel.add(lblTimeLeft);
 		mainPanel.add(lblTimeSeperator);
 		mainPanel.add(lblTotalTime);
+	}//buildMainPanel
+	
+	/**
+	 * Instantiates and sets up the file list panel of the GUI.
+	 * The file list panel holds the currently playing label as well as the
+	 * scroll pane that contains file names.
+	 */
+	private void buildFileListPanel()
+	{
+		fileListPanel = new JPanel();
+		fileListPanel.setPreferredSize(new Dimension(FRAME_WIDTH, FRAME_HEIGHT - 150)); //600x425
 		
-		fileListPanel.setPreferredSize(new Dimension(FRAME_WIDTH, FRAME_HEIGHT - 150));  //600x425
+		scrollPane = new JScrollPane(fileList);
+		scrollPane.setPreferredSize(new Dimension(FRAME_WIDTH - 100, FRAME_HEIGHT - 250)); //500x300
+		
 		fileListPanel.add(lblCurrently);
 		fileListPanel.add(lblName);
 		fileListPanel.add(progressBar);
 		fileListPanel.add(scrollPane);
+	}//buildFileListPanel
+	
+	/**
+	 * Instantiates and sets up the menu system including
+	 * the menu bar, menu, and menu items.
+	 */
+	private void buildMenu()
+	{
+		mnuMenuBar = new JMenuBar();
+		mnuFile = new JMenu("File");
+		mnuFileOpen = new JMenuItem("Open");
+		mnuFileExit = new JMenuItem("Exit");
 		
-		frame.setSize(FRAME_WIDTH, FRAME_HEIGHT); //600x550
-		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		frame.setLayout(new FlowLayout());
-		frame.getContentPane().add(fxPanel);
-		frame.setJMenuBar(mnuMenuBar);
-		frame.getContentPane().add(mainPanel);
-		frame.getContentPane().add(fileListPanel);
-		frame.setVisible(true);
-	}//end of createAndShowGUI
+		mnuFileOpen.addActionListener(new MyMenuListener());
+		mnuFileExit.addActionListener(new MyMenuListener());
 		
-	private class ButtonListener implements ActionListener 
+		mnuFile.add(mnuFileOpen);
+		mnuFile.add(mnuFileExit);
+		mnuMenuBar.add(mnuFile);
+	}//buildMenu
+	
+	/**
+	 * Instantiates and sets up the buttons.
+	 * Sets the color, size, mnemonic, tooltip, and adds 
+	 * the action listener for each button.
+	 */
+	private void buildButtons()
+	{
+		btnOpen = new JButton("Open");
+		btnPause = new JButton("Pause");
+		btnPlay = new JButton("Play");
+		btnStop = new JButton("Stop");
+		btnRemoveSong = new JButton("Remove Song");
+		
+		btnOpen.setBackground(Color.WHITE);
+		btnPause.setBackground(Color.WHITE);
+		btnPlay.setBackground(Color.WHITE);
+		btnStop.setBackground(Color.WHITE);
+		btnRemoveSong.setBackground(Color.WHITE);
+		
+		btnOpen.setPreferredSize(new Dimension(BUTTON_WIDTH, BUTTON_HEIGHT)); //120x25
+		btnPause.setPreferredSize(new Dimension(BUTTON_WIDTH, BUTTON_HEIGHT));
+		btnPlay.setPreferredSize(new Dimension(BUTTON_WIDTH, BUTTON_HEIGHT));
+		btnStop.setPreferredSize(new Dimension(BUTTON_WIDTH, BUTTON_HEIGHT));
+		btnRemoveSong.setPreferredSize(new Dimension(BUTTON_WIDTH, BUTTON_HEIGHT));
+		
+		btnOpen.setMnemonic('o');
+		btnPause.setMnemonic('u');
+		btnPlay.setMnemonic('p');
+		btnStop.setMnemonic('s');
+		btnRemoveSong.setMnemonic('r');
+		
+		btnOpen.setToolTipText("Click to open a file chooser dialog");
+		btnPause.setToolTipText("Click to pause the currently playing file");
+		btnPlay.setToolTipText("Click to play the currently selected file");
+		btnStop.setToolTipText("Click to stop the currently selected file");
+		btnRemoveSong.setToolTipText("Click to remove the currently selected file from the playlist");
+		
+		btnOpen.addActionListener(new MyButtonListener());
+		btnPause.addActionListener(new MyButtonListener());
+		btnPlay.addActionListener(new MyButtonListener());
+		btnStop.addActionListener(new MyButtonListener());
+		btnRemoveSong.addActionListener(new MyButtonListener());
+	}//buildButtons
+	
+	/**
+	 * Instantiates and sets up the labels.
+	 * The labels show the file currently playing as well as the timer
+	 */
+	private void buildLabels()
+	{
+		lblCurrently = new JLabel("Currently Playing: ");
+		lblName = new JLabel("");
+		lblTimeLeft = new JLabel("000");
+		lblTotalTime = new JLabel("000");
+		lblTimeSeperator = new JLabel(" / ");
+		lblTimerPreSpace = new JLabel("     ");
+	}//buildLabels
+	
+	/**
+	 * Instantiates and sets up the volume slider.
+	 * Adds the change listener to the slider as well.
+	 */
+	private void buildVolumeSlider()
+	{
+		sldVolume = new JSlider(JSlider.HORIZONTAL, 0, 100, 33);
+		
+		sldVolume.addChangeListener(new MySliderListener());
+		sldVolume.setSize(200, 25);
+		sldVolume.setMajorTickSpacing(50);
+		sldVolume.setMinorTickSpacing(10);
+		sldVolume.setPaintTicks(true);
+		sldVolume.setForeground(Color.BLACK);
+		sldVolume.setToolTipText("Slider to change the volume");
+	}//buildVolumeSlider
+	
+	/**
+	 * Instantiates and sets up the playlist system.
+	 * The playlist system uses a file chooser to select files, and contains
+	 * ArrayList objects to handle the file names and locations.
+	 */
+	private void buildPlaylistSystem()
+	{
+		chooser = new JFileChooser();
+		listModel = new DefaultListModel<String>();
+		fileList = new JList<String>(listModel);
+		uriList = new ArrayList<URI>();
+		fileNamesList = new ArrayList<String>();		
+		playlistFile = new File("playlist.txt");
+		counter = 0;
+		
+		chooser.setMultiSelectionEnabled(true);
+		fileList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+		fileList.addMouseListener(new MyMouseListener());
+	}//buildPlaylistSystem
+	
+	/**
+	 * Instantiates and sets up the timer system.
+	 * The timer system includes a timer object and progress bar that
+	 * is sync'd with the timer.
+	 */
+	private void buildTimerSystem()
+	{
+		timer = new Timer(1000, new MyTimerListener());
+		progressBar = new JProgressBar(0, 100);
+		
+		progressBar.setPreferredSize(new Dimension(FRAME_WIDTH - 100, 15)); //500x15
+		progressBar.setBackground(Color.WHITE);
+	}//buildTimerSystem
+	
+	/**
+	 * Private class to handle button events generated by the GUI.
+	 * @author kevin
+	 *
+	 */
+	private class MyButtonListener implements ActionListener 
 	{
 		@Override
 		public void actionPerformed(ActionEvent event)
@@ -187,7 +290,7 @@ public class Jams
 				}
 				catch(NullPointerException e)
 				{
-					//catch exception when pause is pushed but no file is playing
+					//catch exception when pause is pushed but no player exists
 				}
 			}
 			else if(event.getSource() == btnPlay) 
@@ -206,15 +309,11 @@ public class Jams
 				}
 				catch(NullPointerException e)
 				{
-					//catch exception when play is pushed but no file is paused
+					//catch exception when play is pushed but no player exists
 				}
 
 			}
-			else if(event.getSource() == btnRemoveSong)
-			{	
-				removeFile();
-			}
-			else 
+			else if(event.getSource() == btnStop)
 			{	
 				try 
 				{	
@@ -227,13 +326,26 @@ public class Jams
 				}
 				catch(NullPointerException e) 
 				{	
-					//catch exceptions when stop is pushed but no file is playing
+					//catch exceptions when stop is pushed but no player exists
 				}
 			}
+			else if(event.getSource() == btnRemoveSong)
+			{	
+				removeFile();
+			}
+			else
+			{
+				System.out.println("Error occurred in MyButtonListener");
+			}
 		}
-	}//end of ButtonListener
+	}//MyButtonListener
 
-	private class SliderListener implements ChangeListener
+	/**
+	 * Private class to handle the change events for the volume slider.
+	 * @author kevin
+	 *
+	 */
+	private class MySliderListener implements ChangeListener
 	{
 		@Override
 		public void stateChanged(ChangeEvent event) 
@@ -244,12 +356,17 @@ public class Jams
 			}
 			catch(NullPointerException e) 
 			{	
-				//catch exceptions when volume is changed but no file is playing
+				//catch exceptions when volume is changed but no player exists
 			}
 		}
-	}//end of SliderListener
+	}//MySliderListener
 	
-	private class MenuListener implements ActionListener 
+	/**
+	 * Private class to handle the events for the menu system
+	 * @author kevin
+	 *
+	 */
+	private class MyMenuListener implements ActionListener 
 	{
 		@Override
 		public void actionPerformed(ActionEvent event) 
@@ -258,14 +375,25 @@ public class Jams
 			{	
 				openFile();
 			}
-			else 
+			else if(event.getSource() == mnuFileExit)
 			{	
 				System.exit(0);
 			}
+			else
+			{
+				System.out.println("Error occurred in MyMenuListener");
+			}
 		}
-	}//end of MenuListener
+	}//MyMenuListener
 	
-	private class MouseClickListener implements MouseListener 
+	/**
+	 * Private class to handle the events for the user using the mouse on the JList.
+	 * Extends MouseAdapter so no need to add all the unused methods, only need to
+	 * add mouseClicked method.
+	 * @author kevin
+	 *
+	 */
+	private class MyMouseListener extends MouseAdapter 
 	{
 		@Override
 		public void mouseClicked(MouseEvent event) 
@@ -275,33 +403,15 @@ public class Jams
 				playFile();
 			}
 		}
-
-		@Override
-		public void mousePressed(MouseEvent event) 
-		{
-			//nothing
-		}
-
-		@Override
-		public void mouseReleased(MouseEvent event) 
-		{
-			//nothing
-		}
-
-		@Override
-		public void mouseEntered(MouseEvent event)
-		{
-			//nothing
-		}
-
-		@Override
-		public void mouseExited(MouseEvent event) 
-		{
-			//nothing
-		}
-	}//end of MouseClickListener
+	}//MyMouseListener
 	
-	private class TimerListener implements ActionListener
+	/**
+	 * Private class to handle the timer generated events.
+	 * The timer will generate an event once every 1000 milliseconds.
+	 * @author kevin
+	 *
+	 */
+	private class MyTimerListener implements ActionListener
 	{
 		@Override
 		public void actionPerformed(ActionEvent event)
@@ -322,25 +432,31 @@ public class Jams
 				playFile();
 			}
 		}
-	}//end of TimerListener
+	}//MyTimerListener
 	
-	public void openFile() 
+	/**
+	 * Method to handle opening a file. The method uses the JFileChooser to choose
+	 * one or more files. The files are added to the URI ArrayList. Next the String
+	 * ArrayList is filled with the actual file names. Last the files are added to
+	 * the JList using the file names.
+	 */
+	private void openFile() 
 	{
 		if(chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION)
 		{
 			files = chooser.getSelectedFiles();
 			
-			for(int i = 0; i < files.length; i++)  //use URI ArrayList to fill with files converted to URI
+			for(int i = 0; i < files.length; i++)  
 			{  
 				uriList.add(files[i].toURI());
 			}
 			
-			for(int i = 0; i < files.length; i++)  //use String ArrayList to fill with the names of the files
+			for(int i = 0; i < files.length; i++)  
 			{
 				fileNamesList.add(files[i].getName());
 			}
 			
-			for(int i = 0; i < files.length; i++)  //adding the song names to the JList
+			for(int i = 0; i < files.length; i++)  
 			{		
 				listModel.addElement(fileNamesList.get(i + counter));
 			}
@@ -348,9 +464,14 @@ public class Jams
 			counter += files.length;
 			writeFile();
 		}
-	}//end of openFile
+	}//openFile
 	
-	public void playFile() 
+	/**
+	 * Plays a file using the Media and MediaPlayer. A new Media and MediaPlayer
+	 * object needs to be created for every new file that is played. The progress
+	 * bar and timer text is set up when the user selects the file.
+	 */
+	private void playFile() 
 	{	
 		try 
 		{	
@@ -358,7 +479,7 @@ public class Jams
 		}
 		catch(NullPointerException e)
 		{
-			//catch exceptions when player is not playing
+			//catch exceptions when no player exists
 		}
 
 		try 
@@ -371,7 +492,8 @@ public class Jams
 			
 			try
 			{
-				Thread.sleep(100);  //sleep so that player.getStopTime() doesn't return "UNKNOWN"
+				//sleep so that player.getStopTime() doesn't return "UNKNOWN"
+				Thread.sleep(100);
 			}
 			catch (InterruptedException e)
 			{
@@ -386,7 +508,7 @@ public class Jams
 			timerIndex = (int) d;  //get rid of decimal point
 			lblTimeLeft.setText("" + timerIndex);
 			lblTotalTime.setText("" + timerIndex);
-			progressBar.setValue(0);
+			progressBar.setValue(0);  //reset progress bar
 			progressBar.setMaximum(timerIndex);
 			progressBarIndex = 0;
 			timer.start();
@@ -395,19 +517,36 @@ public class Jams
 		{
 			//catch exception if file is removed and play is pressed
 		}
-	}//end of playFile
+	}//playFile
 	
-	public void removeFile() 
+	/**
+	 * Removes a file from the GUI. The file gets deleted from
+	 * the JList, URI list, String list. Then calls the writeFile
+	 * method to rewrite the playlist text file.
+	 */
+	private void removeFile() 
 	{
-		int toRemove = fileList.getSelectedIndex();
-		listModel.removeElementAt(toRemove);
-		uriList.remove(toRemove);
-		fileNamesList.remove(toRemove);
-		counter--;
-		writeFile();
-	}//end of removeFile
+		try
+		{
+			int toRemove = fileList.getSelectedIndex();
+			listModel.removeElementAt(toRemove);
+			uriList.remove(toRemove);
+			fileNamesList.remove(toRemove);
+			counter--;
+			writeFile();
+		}
+		catch (ArrayIndexOutOfBoundsException e)
+		{
+			//catch exception if remove file is pressed but no file is selected
+		}
+	}//removeFile
 	
-	public void writeFile()
+	/**
+	 * Writes the file list locations (URI) to a text file using
+	 * a PrintWriter object. The PrintWriter will automatically
+	 * generate a playlist text file if one is not found.
+	 */
+	private void writeFile()
 	{
 		try 
 		{
@@ -416,7 +555,6 @@ public class Jams
 		catch (FileNotFoundException e) 
 		{
 			//catch file not found exception
-			//shouldn't occur because PrintWriter will create blank file if it's not found
 		}
 		
 		for(int i = 0; i < listModel.getSize(); i++)
@@ -426,9 +564,14 @@ public class Jams
 		}
 		
 		pwriter.close();
-	}//end of writeFile
+	}//writeFile
 	
-	public void loadFile()
+	/**
+	 * Loads the files from a text file into the GUI JList.
+	 * The file URI are loaded into a String ArrayList, which are then
+	 * added to the URI list and the file names list and the JList.
+	 */
+	private void loadFile()
 	{
 		ArrayList<String> s = new ArrayList<String>();
 		Scanner scan;
@@ -468,10 +611,10 @@ public class Jams
 		} 
 		catch (FileNotFoundException e) 
 		{
-			//catch exception when class is loaded but no songs.txt file exists
+			//catch exception when program is loaded but no playlist.txt file exists
 			//file will be automatically created by PrintWriter later
 		}
-	}//end of loadFile
+	}//loadFile
 	
 	public static void main(String[] args) 
 	{	
@@ -483,5 +626,5 @@ public class Jams
 				new Jams();
 			}
 		});
-	}//end of main
-}//end of Jams
+	}//main
+}//Jams
