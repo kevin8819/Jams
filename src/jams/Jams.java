@@ -105,6 +105,24 @@ public class Jams
 		
 		createGUI();
 		loadFile();
+		
+		popMenu = new JPopupMenu();
+		popPlay = new JMenuItem("Play");
+		popMenu.add(popPlay);
+		fileList.addMouseListener(new MouseAdapter() {
+			public void mouseReleased(MouseEvent event) {
+				if(event.isPopupTrigger()) {
+					popMenu.show(event.getComponent(), event.getX(), event.getY());
+					fileList.setSelectedIndex(fileList.locationToIndex(event.getPoint()));
+				}
+			}
+		});
+		popPlay.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent event) {
+				playFile();
+			}
+		});
 	}//Constructor
 	
 	private void createGUI()
