@@ -1,3 +1,5 @@
+package jams;
+
 import java.awt.*;
 import java.awt.event.*;
 import java.io.File;
@@ -16,16 +18,16 @@ import javax.swing.event.*;
 
 public class Jams
 {	
+	private static final int FRAME_WIDTH = 600;
+	private static final int FRAME_HEIGHT = 550;
+	private static final int BUTTON_WIDTH = 120;
+	private static final int BUTTON_HEIGHT = 25;
 	private JFrame frame;
-	private final int FRAME_WIDTH = 600;
-	private final int FRAME_HEIGHT = 550;
 	private JFXPanel fxPanel;
 	private JPanel mainPanel;
 	private JPanel fileListPanel;
 	private JLabel lblCurrently, lblName;
 	private JButton btnOpen, btnPause, btnPlay, btnStop, btnRemove;
-	private final int BUTTON_WIDTH = 120;
-	private final int BUTTON_HEIGHT = 25;
 	private JFileChooser jfcchooser;
 	private JSlider sldVolume;
 	private JMenuBar mnuMenuBar;
@@ -50,6 +52,9 @@ public class Jams
 	private int progressBarIndex;
 	private JPopupMenu popMenu;
 	private JMenuItem popPlay;
+	private MyButtonListener btnListener;
+	private MyMenuListener mnuListener;
+	private Dimension btnDimension;
 	
 	public Jams() 
 	{	
@@ -62,54 +67,102 @@ public class Jams
 			System.out.println("Unable to use Windows look and feel, using default instead.");
 		}
 		
-		buildButtons();
-		buildLabels();
-		buildVolumeSlider();
-		buildPlaylistSystem();
-		buildTimerSystem();
-		buildMenu();
-		buildMainPanel();
-		buildFileListPanel();
-		buildFrame();
-		loadFile();
+		btnOpen = new JButton("Open");
+		btnPause = new JButton("Pause");
+		btnPlay = new JButton("Play");
+		btnStop = new JButton("Stop");
+		btnRemove = new JButton("Remove");
+		lblCurrently = new JLabel("Currently Playing: ");
+		lblName = new JLabel("");
+		lblTimeLeft = new JLabel("000");
+		lblTotalTime = new JLabel("000");
+		lblTimeSeperator = new JLabel(" / ");
+		lblTimerPreSpace = new JLabel("     ");
+		sldVolume = new JSlider(JSlider.HORIZONTAL, 0, 100, 33);
+		jfcchooser = new JFileChooser();
+		listModel = new DefaultListModel<String>();
+		fileList = new JList<String>(listModel);
+		uriList = new ArrayList<URI>();
+		fileNamesList = new ArrayList<String>();		
+		playlistFile = new File("playlist.txt");
+		counter = 0;
+		timer = new Timer(1000, new MyTimerListener());
+		progressBar = new JProgressBar(0, 100);
+		mnuMenuBar = new JMenuBar();
+		mnuFile = new JMenu("File");
+		mnuFileOpen = new JMenuItem("Open");
+		mnuFileExit = new JMenuItem("Exit");
 		popMenu = new JPopupMenu();
 		popPlay = new JMenuItem("Play");
-		popMenu.add(popPlay);
-		fileList.addMouseListener(new MouseAdapter() {
-			public void mouseReleased(MouseEvent event) {
-				if(event.isPopupTrigger()) {
-					popMenu.show(event.getComponent(), event.getX(), event.getY());
-					fileList.setSelectedIndex(fileList.locationToIndex(event.getPoint()));
-				}
-			}
-		});
-		popPlay.addActionListener(new ActionListener() {
-			@Override
-			public void actionPerformed(ActionEvent event) {
-				playFile();
-			}
-		});
-	}//Constructor
-	
-	private void buildFrame()
-	{
+		mainPanel = new JPanel();
+		fileListPanel = new JPanel();
+		scrollPane = new JScrollPane(fileList);
 		fxPanel = new JFXPanel();
 		frame = new JFrame("Jams");
+		btnListener = new MyButtonListener();
+		mnuListener = new MyMenuListener();
+		btnDimension = new Dimension(BUTTON_WIDTH, BUTTON_HEIGHT); //120x25
 		
-		frame.setSize(FRAME_WIDTH, FRAME_HEIGHT); //600x550
-		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		frame.setLocationRelativeTo(null);
-		frame.setLayout(new BorderLayout());
-		frame.getContentPane().add(fxPanel);
-		frame.setJMenuBar(mnuMenuBar);
-		frame.getContentPane().add(mainPanel, BorderLayout.NORTH);
-		frame.getContentPane().add(fileListPanel, BorderLayout.CENTER);
-		frame.setVisible(true);
-	}//buildFrame
+		createGUI();
+		loadFile();
+	}//Constructor
 	
-	private void buildMainPanel()
+	private void createGUI()
 	{
-		mainPanel = new JPanel();
+		btnOpen.setBackground(Color.WHITE);
+		btnPause.setBackground(Color.WHITE);
+		btnPlay.setBackground(Color.WHITE);
+		btnStop.setBackground(Color.WHITE);
+		btnRemove.setBackground(Color.WHITE);
+		
+		btnOpen.setPreferredSize(btnDimension);
+		btnPause.setPreferredSize(btnDimension);
+		btnPlay.setPreferredSize(btnDimension);
+		btnStop.setPreferredSize(btnDimension);
+		btnRemove.setPreferredSize(btnDimension);
+		
+		btnOpen.setMnemonic('o');
+		btnPause.setMnemonic('u');
+		btnPlay.setMnemonic('p');
+		btnStop.setMnemonic('s');
+		btnRemove.setMnemonic('r');
+		
+		btnOpen.setToolTipText("Click to open a file chooser dialog");
+		btnPause.setToolTipText("Click to pause the currently playing file");
+		btnPlay.setToolTipText("Click to play the currently selected file");
+		btnStop.setToolTipText("Click to stop the currently selected file");
+		btnRemove.setToolTipText("Click to remove the currently selected file from the playlist");
+		
+		btnOpen.addActionListener(btnListener);
+		btnPause.addActionListener(btnListener);
+		btnPlay.addActionListener(btnListener);
+		btnStop.addActionListener(btnListener);
+		btnRemove.addActionListener(btnListener);
+		
+		sldVolume.addChangeListener(new MySliderListener());
+		sldVolume.setSize(200, 25);
+		sldVolume.setMajorTickSpacing(50);
+		sldVolume.setMinorTickSpacing(10);
+		sldVolume.setPaintTicks(true);
+		sldVolume.setForeground(Color.BLACK);
+		sldVolume.setToolTipText("Slider to change the volume");
+		
+		jfcchooser.setMultiSelectionEnabled(true);
+		fileList.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
+		fileList.addMouseListener(new MyMouseListener());
+		fileList.setFont(new Font(fileList.getFont().toString(), Font.PLAIN, 12));
+		
+		progressBar.setPreferredSize(new Dimension(FRAME_WIDTH - 100, 15)); //500x15
+		progressBar.setBackground(Color.WHITE);
+		
+		mnuFileOpen.addActionListener(mnuListener);
+		mnuFileExit.addActionListener(mnuListener);
+		popPlay.addActionListener(mnuListener);
+		
+		mnuFile.add(mnuFileOpen);
+		mnuFile.add(mnuFileExit);
+		mnuMenuBar.add(mnuFile);
+		popMenu.add(popPlay);
 		
 		mainPanel.setPreferredSize(new Dimension(FRAME_WIDTH, FRAME_HEIGHT - 450)); //600x100
 		mainPanel.add(btnOpen);
@@ -122,14 +175,7 @@ public class Jams
 		mainPanel.add(lblTimeLeft);
 		mainPanel.add(lblTimeSeperator);
 		mainPanel.add(lblTotalTime);
-	}//buildMainPanel
-	
-	private void buildFileListPanel()
-	{
-		fileListPanel = new JPanel();
-		//fileListPanel.setPreferredSize(new Dimension(FRAME_WIDTH, FRAME_HEIGHT - 150)); //600x425
-		scrollPane = new JScrollPane(fileList);
-		//scrollPane.setPreferredSize(new Dimension(FRAME_WIDTH - 100, FRAME_HEIGHT - 250)); //500x300
+		
 		fileListPanel.setLayout(new BorderLayout());
 		fileListPanel.setBorder(BorderFactory.createEmptyBorder(0, 10, 10, 10));
 		
@@ -149,110 +195,17 @@ public class Jams
 
 		fileListPanel.add(temp, BorderLayout.NORTH);
 		fileListPanel.add(scrollPane, BorderLayout.CENTER);
-	}//buildFileListPanel
-	
-	private void buildMenu()
-	{
-		mnuMenuBar = new JMenuBar();
-		mnuFile = new JMenu("File");
-		mnuFileOpen = new JMenuItem("Open");
-		mnuFileExit = new JMenuItem("Exit");
 		
-		mnuFileOpen.addActionListener(new MyMenuListener());
-		mnuFileExit.addActionListener(new MyMenuListener());
-		
-		mnuFile.add(mnuFileOpen);
-		mnuFile.add(mnuFileExit);
-		mnuMenuBar.add(mnuFile);
-	}//buildMenu
-	
-	private void buildButtons()
-	{
-		btnOpen = new JButton("Open");
-		btnPause = new JButton("Pause");
-		btnPlay = new JButton("Play");
-		btnStop = new JButton("Stop");
-		btnRemove = new JButton("Remove");
-		
-		btnOpen.setBackground(Color.WHITE);
-		btnPause.setBackground(Color.WHITE);
-		btnPlay.setBackground(Color.WHITE);
-		btnStop.setBackground(Color.WHITE);
-		btnRemove.setBackground(Color.WHITE);
-		
-		btnOpen.setPreferredSize(new Dimension(BUTTON_WIDTH, BUTTON_HEIGHT)); //120x25
-		btnPause.setPreferredSize(new Dimension(BUTTON_WIDTH, BUTTON_HEIGHT));
-		btnPlay.setPreferredSize(new Dimension(BUTTON_WIDTH, BUTTON_HEIGHT));
-		btnStop.setPreferredSize(new Dimension(BUTTON_WIDTH, BUTTON_HEIGHT));
-		btnRemove.setPreferredSize(new Dimension(BUTTON_WIDTH, BUTTON_HEIGHT));
-		
-		btnOpen.setMnemonic('o');
-		btnPause.setMnemonic('u');
-		btnPlay.setMnemonic('p');
-		btnStop.setMnemonic('s');
-		btnRemove.setMnemonic('r');
-		
-		btnOpen.setToolTipText("Click to open a file chooser dialog");
-		btnPause.setToolTipText("Click to pause the currently playing file");
-		btnPlay.setToolTipText("Click to play the currently selected file");
-		btnStop.setToolTipText("Click to stop the currently selected file");
-		btnRemove.setToolTipText("Click to remove the currently selected file from the playlist");
-		
-		btnOpen.addActionListener(new MyButtonListener());
-		btnPause.addActionListener(new MyButtonListener());
-		btnPlay.addActionListener(new MyButtonListener());
-		btnStop.addActionListener(new MyButtonListener());
-		btnRemove.addActionListener(new MyButtonListener());
-	}//buildButtons
-	
-	private void buildLabels()
-	{
-		lblCurrently = new JLabel("Currently Playing: ");
-		lblName = new JLabel("");
-		lblTimeLeft = new JLabel("000");
-		lblTotalTime = new JLabel("000");
-		lblTimeSeperator = new JLabel(" / ");
-		lblTimerPreSpace = new JLabel("     ");
-	}//buildLabels
-	
-	private void buildVolumeSlider()
-	{
-		sldVolume = new JSlider(JSlider.HORIZONTAL, 0, 100, 33);
-		
-		sldVolume.addChangeListener(new MySliderListener());
-		sldVolume.setSize(200, 25);
-		sldVolume.setMajorTickSpacing(50);
-		sldVolume.setMinorTickSpacing(10);
-		sldVolume.setPaintTicks(true);
-		sldVolume.setForeground(Color.BLACK);
-		sldVolume.setToolTipText("Slider to change the volume");
-	}//buildVolumeSlider
-	
-	private void buildPlaylistSystem()
-	{
-		jfcchooser = new JFileChooser();
-		listModel = new DefaultListModel<String>();
-		fileList = new JList<String>(listModel);
-		uriList = new ArrayList<URI>();
-		fileNamesList = new ArrayList<String>();		
-		playlistFile = new File("playlist.txt");
-		counter = 0;
-		
-		jfcchooser.setMultiSelectionEnabled(true);
-		//fileList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-		fileList.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
-		fileList.addMouseListener(new MyMouseListener());
-		fileList.setFont(new Font(btnOpen.getFont().toString(), Font.PLAIN, 12));
-	}//buildPlaylistSystem
-	
-	private void buildTimerSystem()
-	{
-		timer = new Timer(1000, new MyTimerListener());
-		progressBar = new JProgressBar(0, 100);
-		
-		progressBar.setPreferredSize(new Dimension(FRAME_WIDTH - 100, 15)); //500x15
-		progressBar.setBackground(Color.WHITE);
-	}//buildTimerSystem
+		frame.setSize(FRAME_WIDTH, FRAME_HEIGHT); //600x550
+		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		frame.setLocationRelativeTo(null);
+		frame.setLayout(new BorderLayout());
+		frame.getContentPane().add(fxPanel);
+		frame.setJMenuBar(mnuMenuBar);
+		frame.getContentPane().add(mainPanel, BorderLayout.NORTH);
+		frame.getContentPane().add(fileListPanel, BorderLayout.CENTER);
+		frame.setVisible(true);
+	}
 	
 	private class MyButtonListener implements ActionListener 
 	{
@@ -359,6 +312,10 @@ public class Jams
 			{	
 				System.exit(0);
 			}
+			else if(event.getSource() == popPlay)
+			{
+				playFile();
+			}
 			else
 			{
 				System.out.println("Error occurred in MyMenuListener");
@@ -371,9 +328,19 @@ public class Jams
 		@Override
 		public void mouseClicked(MouseEvent event) 
 		{	
-			if(event.getClickCount() == 2)  //represents double-click
+			if(event.getClickCount() == 2)  //double-click
 			{	
 				playFile();
+			}
+		}
+		
+		@Override
+		public void mouseReleased(MouseEvent event)
+		{
+			if(event.isPopupTrigger())
+			{
+				popMenu.show(event.getComponent(), event.getX(), event.getY());
+				fileList.setSelectedIndex(fileList.locationToIndex(event.getPoint()));
 			}
 		}
 	}//MyMouseListener
@@ -441,28 +408,15 @@ public class Jams
 		try 
 		{
 			media = new Media(uriList.get(fileList.getSelectedIndex()).toString());
-			/*media.getMetadata().addListener(new MapChangeListener<String, Object>() {                 
-	            public void onChanged(Change<? extends String, ? extends Object> change) {
-	                if (change.wasAdded()) {
-	                    if (change.getKey().equals("artist")) {
-	                        lblName.setText((String) change.getValueAdded() + "  -  " );
-	                     }
-	                    if(change.getKey().equals("title")) {
-	                    	lblName.setText((String) lblName.getText() + change.getValueAdded());
-	                    }
-	                }
-	            }
-	        });*/
 			player = new MediaPlayer(media);
 			player.setVolume(sldVolume.getValue() / 100.0);  //divide by 100.0 to get a double between 0 and 1
-			player.play();
 			lblName.setText(fileNamesList.get(fileList.getSelectedIndex()));
 			frame.setTitle(fileNamesList.get(fileList.getSelectedIndex()));
 			
 			try
 			{
 				//sleep so that player.getStopTime() doesn't return "UNKNOWN"
-				Thread.sleep(100);
+				Thread.sleep(200);
 			}
 			catch (InterruptedException e)
 			{
@@ -481,6 +435,7 @@ public class Jams
 			progressBar.setMaximum(timerIndex);
 			progressBarIndex = 0;
 			timer.start();
+			player.play();
 		}
 		catch(ArrayIndexOutOfBoundsException e)
 		{
